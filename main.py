@@ -6,68 +6,74 @@ import numpy as np
 import matplotlib.animation as animation
 
 
-class Pendulum:
-    def __init__(self, theta1, theta2, dt):
-        self.theta1 = theta1
-        self.theta2 = theta2
+class Arrow:
+    def __init__(self, height, speed, angle, dt):
+        self.height = height
+        self.speed = speed
+        self.angle = self.degree_to_radians(angle)
 
-        self.p1 = 0.0
-        self.p2 = 0.0
+        self.touched_ground = False
+
+        self.x = 0.0
+        self.y = height
+
+        self.max_x = self.x
+        self.max_y = self.y
+        self.max = self.max_y
 
         self.dt = dt
 
-        self.g = 9.81
-        self.length = 1.0
+        self.g = -9.81
 
-        self.trajectory = [self.polar_to_cartesian()]
+        self.timed_speed = self.speed * self.dt
+        self.timed_g = self.g * self.dt
 
-    def polar_to_cartesian(self):
-        x1 = self.length * np.sin(self.theta1)
-        y1 = -self.length * np.cos(self.theta1)
+        self.x_speed, self.y_speed = self.split_speed()
+        self.trajectory = [np.array([[0.0, self.height], [self.x, self.y]])]
 
-        #x2 = x1 + self.length * sp.sin(self.theta2)
-        #y2 = y1 - self.length * sp.cos(self.theta2)
+    def degree_to_radians(self, degree):
+        return degree * np.pi / 180
 
-        print(self.theta1, self.theta2)
-        return np.array([[0.0, 0.0], [x1, y1]])
+    def split_speed(self):
+        return np.cos(self.angle) * self.timed_speed, np.sin(self.angle) * self.timed_speed
+
+    def update_max_height(self):
+        if self.x > self.max_x:
+            self.max_x = self.x
+        if self.y > self.max_y:
+            self.max_y = self.y
+
+        if self.max_y > self.max_x:
+            self.max = self.max_y
+        else:
+            self.max = self.max_x
 
     def evolve(self):
-        theta1 = self.theta1
-        theta2 = self.theta2
-        p1 = self.p1
-        p2 = self.p2
-        g = self.g
-        l = self.length
+        self.y_speed += self.timed_g
+        self.y += self.y_speed
+        self.x += self.x_speed
 
-        expr1 = np.cos(theta1 - theta2)
-        expr2 = np.sin(theta1 - theta2)
-        expr3 = (1 + expr2 ** 2)
-        expr4 = p1 * p2 * expr2 / expr3
-        expr5 = (p1 ** 2 + 2 * p2 ** 2 - p1 * p2 * expr1) \
-                * np.sin(2 * (theta1 - theta2)) / 2 / expr3 ** 2
-        expr6 = expr4 - expr5
+        if self.y < 0.0:
+            self.y = 0.0
+            self.touched_ground = True
+        self.update_max_height()
 
-        self.theta1 += self.dt * (p1 - p2 * expr1) / expr3
-        self.theta2 += self.dt * (2 * p2 - p1 * expr1) / expr3
-        self.p1 += self.dt * (-2 * g * l * np.sin(theta1) - expr6)
-        self.p2 += self.dt * (-g * l * np.sin(theta2) + expr6)
-
-        new_position = self.polar_to_cartesian()
+        new_position = np.array([[0.0, self.height], [self.x, self.y]])
         self.trajectory.append(new_position)
         print(new_position)
         return new_position
 
 
 class Animator:
-    def __init__(self, pendulum, draw_trace=False):
-        self.pendulum = pendulum
+    def __init__(self, drawn_object, draw_trace=False):
+        self.object = drawn_object
         self.draw_trace = draw_trace
         self.time = 0.0
 
         # set up the figure
         self.fig, self.ax = plt.subplots()
-        self.ax.set_ylim(-2.5, 2.5)
-        self.ax.set_xlim(-2.5, 2.5)
+        self.ax.set_ylim(bottom=0)
+        self.ax.set_xlim(left=0)
 
         # prepare a text window for the timer
         self.time_text = self.ax.text(0.05, 0.95, '',
@@ -77,20 +83,25 @@ class Animator:
 
         # initialize by plotting the last position of the trajectory
         self.line, = self.ax.plot(
-            self.pendulum.trajectory[-1][:, 0],
-            self.pendulum.trajectory[-1][:, 1],
+            self.object.trajectory[-1][:, 0],
+            self.object.trajectory[-1][:, 1],
+            linestyle='None',
             marker=(3, 0, 180))
 
-        # trace the whole trajectory of the second pendulum mass
+        # trace the whole trajectory of the arrow
         if self.draw_trace:
             self.trace, = self.ax.plot(
-                [a[1][0] for a in self.pendulum.trajectory],
-                [a[1][1] for a in self.pendulum.trajectory])
+                [a[1][0] for a in self.object.trajectory],
+                [a[1][1] for a in self.object.trajectory])
 
     def advance_time_step(self):
-        while True:
-            self.time += self.pendulum.dt
-            yield self.pendulum.evolve()
+        while not self.object.touched_ground:
+            self.time += self.object.dt
+            yield self.object.evolve()
+
+    def update_frame(self):
+        self.ax.set_ylim(top=self.object.max)
+        self.ax.set_xlim(right=self.object.max)
 
     def update(self, data):
         self.time_text.set_text(f'Elapsed time: {round(self.time, 2)} s')
@@ -98,17 +109,19 @@ class Animator:
         self.line.set_ydata(data[:, 1])
         self.line.set_xdata(data[:, 0])
 
+        self.update_frame()
+
         if self.draw_trace:
-            self.trace.set_xdata([a[1, 0] for a in self.pendulum.trajectory])
-            self.trace.set_ydata([a[1, 1] for a in self.pendulum.trajectory])
-        return self.line,
+            self.trace.set_xdata([a[1, 0] for a in self.object.trajectory])
+            self.trace.set_ydata([a[1, 1] for a in self.object.trajectory])
+        return self.line
 
     def animate(self):
         self.animation = animation.FuncAnimation(self.fig, self.update,
                                                  self.advance_time_step, interval=25, blit=False)
 
 
-pendulum = Pendulum(theta1=np.pi, theta2=np.pi - 0.01, dt=0.01)
-animator = Animator(pendulum=pendulum, draw_trace=True)
+arrow = Arrow(height=3, speed=80, angle=45, dt=0.001)
+animator = Animator(drawn_object=arrow, draw_trace=True)
 animator.animate()
 plt.show()
