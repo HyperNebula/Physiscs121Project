@@ -26,6 +26,12 @@ class Arrow:
         self.g = -9.81
 
         self.x_speed, self.y_speed = self.split_speed()
+
+        self.time_final = (-self.y_speed - (self.y_speed ** 2 - (2 * self.g * self.height)) ** 0.5) / self.g
+        self.x_final = self.x_speed * self.time_final
+
+        print(self.x_final)
+
         self.trajectory = [np.array([[0.0, self.height], [self.x, self.y]])]
 
     def degree_to_radians(self, degree):
@@ -52,7 +58,8 @@ class Arrow:
         self.y_speed += self.g * self.dt
 
         if self.y < 0.0:
-            self.y = 0.0
+            # self.y = 0.0
+            # self.x = self.x_final
             self.touched_ground = True
         self.update_max_height()
 
@@ -119,7 +126,7 @@ class Animator:
                                                  self.advance_time_step, interval=25, blit=False)
 
 
-arrow = Arrow(height=3, speed=10, angle=45, dt=0.01)
+arrow = Arrow(height=2, speed=10, angle=40, dt=0.01)
 animator = Animator(drawn_object=arrow, draw_trace=True)
 animator.animate()
 plt.show()
