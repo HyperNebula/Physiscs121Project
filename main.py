@@ -25,9 +25,6 @@ class Arrow:
 
         self.g = -9.81
 
-        self.timed_speed = self.speed * self.dt
-        self.timed_g = self.g * self.dt
-
         self.x_speed, self.y_speed = self.split_speed()
         self.trajectory = [np.array([[0.0, self.height], [self.x, self.y]])]
 
@@ -35,7 +32,7 @@ class Arrow:
         return degree * np.pi / 180
 
     def split_speed(self):
-        return np.cos(self.angle) * self.timed_speed, np.sin(self.angle) * self.timed_speed
+        return np.cos(self.angle) * self.speed, np.sin(self.angle) * self.speed
 
     def update_max_height(self):
         if self.x > self.max_x:
@@ -49,9 +46,10 @@ class Arrow:
             self.max = self.max_x
 
     def evolve(self):
-        self.y_speed += self.timed_g
-        self.y += self.y_speed
-        self.x += self.x_speed
+        self.y += self.y_speed * self.dt
+        self.x += self.x_speed * self.dt
+
+        self.y_speed += self.g * self.dt
 
         if self.y < 0.0:
             self.y = 0.0
@@ -121,7 +119,7 @@ class Animator:
                                                  self.advance_time_step, interval=25, blit=False)
 
 
-arrow = Arrow(height=3, speed=80, angle=45, dt=0.001)
+arrow = Arrow(height=3, speed=10, angle=45, dt=0.01)
 animator = Animator(drawn_object=arrow, draw_trace=True)
 animator.animate()
 plt.show()
