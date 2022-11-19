@@ -109,7 +109,7 @@ class Animator:
         self.ax.set_ylim(top=self.object.max)
         self.ax.set_xlim(right=self.object.max)
 
-        plt.savefig(f'frame{self.time}.png')
+        plt.savefig(f'frame{round(self.time, 2)}.png')
 
     def update(self, data):
         self.time_text.set_text(f'Elapsed time: {round(self.time, 2)} s')
