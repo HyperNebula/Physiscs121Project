@@ -34,7 +34,8 @@ class Arrow:
 
         self.trajectory = [np.array([[0.0, self.height], [self.x, self.y]])]
 
-    def degree_to_radians(self, degree):
+    @staticmethod
+    def degree_to_radians(degree):
         return degree * np.pi / 180
 
     def split_speed(self):
@@ -107,6 +108,8 @@ class Animator:
     def update_frame(self):
         self.ax.set_ylim(top=self.object.max)
         self.ax.set_xlim(right=self.object.max)
+
+        plt.savefig(f'frame{self.time}.png')
 
     def update(self, data):
         self.time_text.set_text(f'Elapsed time: {round(self.time, 2)} s')
